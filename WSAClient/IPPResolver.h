@@ -12,7 +12,6 @@ private:
 public:
 	IPPResolver(std::string u);
 	int ResolvePort();
-	addrinfo* HostResolver();
 	std::string ResolveHost();
 };
 

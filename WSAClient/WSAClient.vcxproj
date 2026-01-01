@@ -131,14 +131,12 @@
     <ClCompile Include="Downloader.cpp" />
     <ClCompile Include="FileNameParser.cpp" />
     <ClCompile Include="IPPResolver.cpp" />
-    <ClCompile Include="StartWSA.cpp" />
     <ClCompile Include="WSAClient.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Downloader.h" />
     <ClInclude Include="FileNameParser.h" />
     <ClInclude Include="IPPResolver.h" />
-    <ClInclude Include="StartWSA.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

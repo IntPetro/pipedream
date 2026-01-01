@@ -59,21 +59,3 @@ std::string IPPResolver::ResolveHost()
 
     return url.substr(host_start, host_end - host_start);
 }
-
-addrinfo* IPPResolver::HostResolver()
-{
-    addrinfo hint;
-    addrinfo* result;
-    memset(&hint, 0, sizeof(hint));
-    hint.ai_socktype = SOCK_STREAM;
-    hint.ai_family = AF_UNSPEC;
-
-    std::string host = ResolveHost();
-    std::string port = std::to_string(ResolvePort());
-
-    int status = getaddrinfo(host.c_str(), port.c_str(), &hint, &result);
-    if (status)
-        return NULL;
-    else
-        return result;
-}

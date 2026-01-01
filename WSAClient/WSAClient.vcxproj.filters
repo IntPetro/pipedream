@@ -24,9 +24,6 @@
     <ClCompile Include="FileNameParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="StartWSA.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Downloader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -36,9 +33,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FileNameParser.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="StartWSA.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Downloader.h">
