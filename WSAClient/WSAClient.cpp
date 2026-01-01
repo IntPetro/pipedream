@@ -7,6 +7,8 @@
 #include <sstream>
 #include <chrono>
 #include "StartWSA.h"
+#include <Windows.h>
+#include <winhttp.h>
 using namespace std;
 
 
@@ -121,9 +123,36 @@ string getHeader(SOCKET sock)
     }
     return header;
 }
+int httpsTest()
+{
+    HINTERNET h = WinHttpOpen(L"Test/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!h)
+        return -1;
+    HINTERNET hConnect = WinHttpConnect(h, L"fsn1-speed.hetzner.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", L"/1GB.bin", NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+    BOOL ok = WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA,0,0,0);
+    if (ok == FALSE)
+        return -1;
+    ok = WinHttpReceiveResponse(hRequest, NULL);
+    ofstream file("C:/Users/Ishan/Desktop/test.bin", ios::binary);
+    DWORD bytesRead = 0;
+    char buffer[8192];
+    do {
+        ok = WinHttpReadData(hRequest, buffer, sizeof(buffer), &bytesRead);
+        if (!ok)
+            break;
+        if (bytesRead > 0)
+            file.write(buffer, bytesRead);
+    } while (bytesRead > 0);
+    WinHttpCloseHandle(hRequest);
+    WinHttpCloseHandle(hConnect);
+    WinHttpCloseHandle(h); 
+    return 0;
+}
+
 int main(int argc,char*argv[])
 {
-    if (argc < 3) {
+    /*if (argc < 3) {
         std::cerr << "Usage: <url> <output_dir>\n";
         return -1;
     }
@@ -161,6 +190,9 @@ int main(int argc,char*argv[])
         }
     }
     WSACleanup();
+    */
+    cout << httpsTest();
+
     return 0;
     
 }
