@@ -176,6 +176,69 @@ int Downloader::DecideOpAndWrite()
 
 	return 0;
 }
+
+
+void Downloader::preallocate_file(uint64_t size)
+{
+	std::ofstream out(filePath, std::ios::binary | std::ios::trunc);
+	if (!out)
+		throw std::runtime_error("Failed to create o/p file!");
+	out.seekp(size - 1);
+	out.write("", 1);
+	out.close();
+}
+
+void Downloader::download_chunk(const Chunk& chunk, const std::wstring& host, const std::wstring file, bool https, const std::string& filePath)
+{
+	HINTERNET hSession = WinHttpOpen(L"Worker/1.0", WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+	if (!hSession)
+		throw std::runtime_error("WinHttpOpen failed!");
+	HINTERNET hConnect = WinHttpConnect(hSession, host.c_str(), https ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT, 0);
+	if (!hConnect)
+		throw std::runtime_error("WinHttpConnect Failed!");
+	HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", file.c_str(), NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, https ? WINHTTP_FLAG_SECURE : 0);
+	if (!hRequest)
+		throw std::runtime_error("WinHttpOpenRequest failed!");
+
+	std::wstring range = L"Range: bytes=" + string_to_wstring(std::to_string(chunk.start)) + L"-" + string_to_wstring(std::to_string(chunk.end)) + L"\r\n";
+	WinHttpAddRequestHeaders(hRequest, range.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD);
+	if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0))
+		throw std::runtime_error("Send failed!");
+	if (!WinHttpReceiveResponse(hRequest, nullptr))
+		throw std::runtime_error("Receive failed!");
+
+	DWORD status = 0;
+	DWORD size = sizeof(status);
+	WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status, &size, WINHTTP_NO_HEADER_INDEX);
+	if (status != 206)
+		throw std::runtime_error("Server fraudass");
+	std::ofstream out(filePath, std::ios::binary | std::ios::in | std::ios::out);
+	out.seekp(chunk.start);
+
+	constexpr DWORD BUF_SIZE = 256 * 1024;
+	std::vector<char> buffer(BUF_SIZE);
+	DWORD bytesRead = 0;
+	while (WinHttpReadData(hRequest, buffer.data(), BUF_SIZE, &bytesRead) && bytesRead > 0)
+		out.write(buffer.data(), bytesRead);
+	WinHttpCloseHandle(hRequest);
+	WinHttpCloseHandle(hConnect);
+	WinHttpCloseHandle(hSession);
+	
+}
+void Downloader::download_multi(ThingInfo info)
+{
+	preallocate_file(info.conLen);
+
+	std::vector<std::thread> threads;
+	for (const auto& c : info.chunks)
+	{
+		threads.emplace_back([this, c]() {
+			this->download_chunk(c, wHost, fileName, port == 443, filePath);
+		});;
+	}
+	for (auto& t : threads)
+		t.join();
+}
 int Downloader::run()
 {
 	if (std::filesystem::exists(filePath))

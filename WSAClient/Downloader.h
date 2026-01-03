@@ -5,8 +5,8 @@
 #include <fstream>
 #include <string>
 #include <filesystem>
-
-
+#include <thread>
+#include "Structs.h"
 class Downloader
 {
 private:
@@ -32,9 +32,13 @@ private:
 	std::ofstream decideOp(int statusCode,std::string filePath);
 	int DecideOpAndWrite();
 	int ReceiveContentLength();
+	void preallocate_file(uint64_t size);
+	void download_chunk(const Chunk& chunk, const std::wstring& host, const std::wstring file, bool https, const std::string& filePath);
+	
 public:
 	Downloader(std::wstring fName, std::string fPath, int p, std::wstring host);
 	int run();
+	void download_multi(ThingInfo info);
 
 };
 

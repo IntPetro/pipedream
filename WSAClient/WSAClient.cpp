@@ -9,6 +9,8 @@
 #include <locale>
 #include <codecvt>
 #include "Downloader.h"
+#include "Prober.h"
+#include "Structs.h"
 
 
 using namespace std;
@@ -45,35 +47,6 @@ string requestBuilder(string fileName,string filePath,IPPResolver ipr)
 }
 
 
-std::wstring string_to_wstring(const std::string& str)
-{
-    if (str.empty())
-        return L"";
-    int size_needed = MultiByteToWideChar(
-        CP_UTF8,               
-        MB_ERR_INVALID_CHARS,  
-        str.data(),
-        (int)str.size(),
-        nullptr,
-        0
-    );
-    if (size_needed == 0)
-        throw std::runtime_error("MultiByteToWideChar failed");
-    std::wstring wstr(size_needed, 0);
-    int result = MultiByteToWideChar(
-        CP_UTF8,
-        MB_ERR_INVALID_CHARS,
-        str.data(),
-        (int)str.size(),
-        &wstr[0],
-        size_needed
-    );
-
-    if (result == 0)
-        throw std::runtime_error("MultiByteToWideChar failed");
-
-    return wstr;
-}
 
 
 int main(int argc,char*argv[])
@@ -94,7 +67,22 @@ int main(int argc,char*argv[])
     wstring fName = string_to_wstring(temp);
 
     Downloader d(fName, filePath, ipr.ResolvePort(), wHost);
-    d.run();
+    Prober p(wHost, fName, ipr.ResolvePort() == 443 ? 1 : 0);
+    ThingInfo info = p.probe(2);
+    if (!info.supportsRanges)
+    {
+        cout << "Going solo!" << endl;
+        cout << info.conLen << endl;
+    }
+    else
+    {
+        cout << "Going squad!" << endl;
+        cout << info.conLen << endl;
+        for (auto& it : info.chunks)
+            cout << it.start << " " << it.end << endl;
+        d.download_multi(info);
+    }
+
     return 0;
     
 }
