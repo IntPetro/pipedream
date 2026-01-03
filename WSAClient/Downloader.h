@@ -27,6 +27,7 @@ private:
 	int ConnectAndRequest();
 	int SendAndReceiveRequest();
 	int ReceiveStatus();
+	int SetBufferSize();
 	int AddRangeHeader();
 	std::ofstream decideOp(int statusCode,std::string filePath);
 	int DecideOpAndWrite();

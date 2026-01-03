@@ -41,6 +41,12 @@ int Downloader::ConnectAndRequest()
 		return -1;
 	}
 }
+int Downloader::SetBufferSize()
+{
+	DWORD recvSize = 256*1024;
+	WinHttpSetOption(hRequest, WINHTTP_OPTION_READ_BUFFER_SIZE, &recvSize, sizeof(recvSize));
+	return 0;
+}
 int Downloader::AddRangeHeader()
 {
 	std::string str = std::to_string(resumeFrom);
@@ -139,19 +145,27 @@ int Downloader::DecideOpAndWrite()
 		return -1;
 	}
 	std::cout << "File OP Decided!" << std::endl;
+	file.rdbuf()->pubsetbuf(nullptr, 1 << 20);
 	DWORD bytesRead = 0;
-	char buffer[8192];
+	static constexpr size_t BUF_SIZE = 256 * 1024;
+	std::vector<char> buffer(BUF_SIZE);
 	do {
-		ok = WinHttpReadData(hRequest, buffer, sizeof(buffer), &bytesRead);
+		ok = WinHttpReadData(hRequest, buffer.data(), buffer.size(), &bytesRead);
 		if (!ok)
 			break;
 		if (bytesRead > 0) {
-			file.write(buffer, bytesRead);
+			file.write(buffer.data(), bytesRead);
 			downloaded += bytesRead;
 			if (totalSize > 0)
 			{
 				double percent = (double)downloaded * 100.0 / totalSize;
-				std::cout << "\rProgress:" << (int)percent << "%  " << std::flush;
+				static auto last = std::chrono::steady_clock::now();
+
+				auto now = std::chrono::steady_clock::now();
+				if (now - last > std::chrono::milliseconds(200)) {
+					std::cout << "\rProgress: " << (int)percent << "%" << std::flush;
+					last = now;
+				}
 			}
 			else
 			{
@@ -170,6 +184,7 @@ int Downloader::run()
 	ConnectAndRequest();
 	if (resumeFrom > 0)
 		AddRangeHeader();
+	SetBufferSize();
 	SendAndReceiveRequest();
 	ReceiveStatus();
 	ReceiveContentLength();
