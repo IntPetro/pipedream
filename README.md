@@ -17,12 +17,10 @@ I wanted to understand **why** download managers are fast at the TCP and OS and 
 
 This project is the result.
 
---
 
 ## Core ideas
 
-- Few **persistent TCP connections** instead of many short-lived ones  
-- Logical **chunks for scheduling**, not fake parallelism  
+- Few **persistent TCP connections** instead of many short-lived ones 
 - Minimal I/O overhead (no worker logging, no UI work)
 - Preallocated output files for parallel random-access writes
 
