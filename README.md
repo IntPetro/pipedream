@@ -65,3 +65,7 @@ All tests use a **1 GB file**, multiple runs. (median shown here)
 - Focus on correctness
 - Handling redirects, unstable servers, different file names reported etc
 - Dynamic chunking
+
+
+EL. PSY. KONGROO.
+Divergence Number: 1.048596
