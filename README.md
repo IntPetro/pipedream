@@ -2,8 +2,11 @@
 
 A multi-threaded, split-based CLI downloader built out of pure frustration with Chrome’s inbuilt downloader.
 
+
 Written entirely in C++, with one goal:  
 **push the network and disk as close to saturation as possible**.
+
+Uses WinHttp as the base library.
 
 ## Why tho
 
@@ -55,15 +58,6 @@ All tests use a **1 GB file**, multiple runs. (median shown here)
 - Not a Chrome replacement
 - Not a full IDM clone
 - Not tuned for unstable or lossy networks (yet)
-
----
-
-## Build
-
-Windows (MSVC):
-
-```bash
-cl /std:c++20 /O2 *.cpp winhttp.lib
 
 ---
 
