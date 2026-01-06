@@ -13,6 +13,8 @@ private:
 	HINTERNET hSession;
 	HINTERNET hConnect;
 	HINTERNET hRequest;
+	HINTERNET hSeshCommon;
+	std::atomic<bool> done{ false };
 	BOOL ok;
 	std::wstring fileName;
 	std::string filePath;
@@ -33,8 +35,11 @@ private:
 	int DecideOpAndWrite();
 	int ReceiveContentLength();
 	void preallocate_file(uint64_t size);
-	void download_chunk(const Chunk& chunk, const std::wstring& host, const std::wstring file, bool https, const std::string& filePath);
-	
+	void download_chunk(const Chunk& chunk, const std::wstring& host, const std::wstring file, bool https, const std::string& filePath,HINTERNET hConnect);
+	void commonSession();
+	HINTERNET createConnection();
+	void worker(ChunkQueue& queue, const std::wstring& host, const std::wstring path, const std::string& filePath, bool https);
+	void dlMon(const std::vector<Chunk>& chunks);
 public:
 	Downloader(std::wstring fName, std::string fPath, int p, std::wstring host);
 	int run();

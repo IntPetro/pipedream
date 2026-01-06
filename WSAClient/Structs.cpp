@@ -29,3 +29,19 @@ std::wstring string_to_wstring(const std::string& str)
 
     return wstr;
 }
+
+void ChunkQueue::push(const Chunk& c)
+{
+    std::lock_guard<std::mutex> lock(m);
+    q.push(c);
+}
+
+bool ChunkQueue::pop(Chunk& out)
+{
+    std::lock_guard<std::mutex> lock(m);
+    if (q.empty())
+        return false;
+    out = q.front();
+    q.pop();
+    return true;
+}

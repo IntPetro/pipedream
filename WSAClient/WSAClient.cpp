@@ -68,7 +68,7 @@ int main(int argc,char*argv[])
 
     Downloader d(fName, filePath, ipr.ResolvePort(), wHost);
     Prober p(wHost, fName, ipr.ResolvePort() == 443 ? 1 : 0);
-    ThingInfo info = p.probe(2);
+    ThingInfo info = p.probe(32);
     if (!info.supportsRanges)
     {
         cout << "Going solo!" << endl;

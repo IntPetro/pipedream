@@ -187,18 +187,30 @@ void Downloader::preallocate_file(uint64_t size)
 	out.write("", 1);
 	out.close();
 }
-
-void Downloader::download_chunk(const Chunk& chunk, const std::wstring& host, const std::wstring file, bool https, const std::string& filePath)
+void Downloader::commonSession()
 {
-	HINTERNET hSession = WinHttpOpen(L"Worker/1.0", WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-	if (!hSession)
-		throw std::runtime_error("WinHttpOpen failed!");
-	HINTERNET hConnect = WinHttpConnect(hSession, host.c_str(), https ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT, 0);
+	hSeshCommon = WinHttpOpen(L"CommonSesh/1.0", WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+	if (!hSeshCommon)
+		throw std::runtime_error("WinHttpOpen Failed");
+
+	WinHttpSetTimeouts(hSeshCommon, 5000, 5000, 5000, 30000);
+
+}
+HINTERNET Downloader::createConnection()
+{
+	HINTERNET hConnect = WinHttpConnect(hSeshCommon, wHost.c_str(), port==443 ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT, 0);
 	if (!hConnect)
 		throw std::runtime_error("WinHttpConnect Failed!");
+	return hConnect;
+}
+void Downloader::download_chunk(const Chunk& chunk, const std::wstring& host, const std::wstring file, bool https, const std::string& filePath,HINTERNET hConnect)
+{
 	HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", file.c_str(), NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, https ? WINHTTP_FLAG_SECURE : 0);
 	if (!hRequest)
 		throw std::runtime_error("WinHttpOpenRequest failed!");
+
+	DWORD bufferSize = 1024 * 512;
+	WinHttpSetOption(hRequest, WINHTTP_OPTION_READ_BUFFER_SIZE, &bufferSize, sizeof(bufferSize));
 
 	std::wstring range = L"Range: bytes=" + string_to_wstring(std::to_string(chunk.start)) + L"-" + string_to_wstring(std::to_string(chunk.end)) + L"\r\n";
 	WinHttpAddRequestHeaders(hRequest, range.c_str(), -1, WINHTTP_ADDREQ_FLAG_ADD);
@@ -214,31 +226,80 @@ void Downloader::download_chunk(const Chunk& chunk, const std::wstring& host, co
 		throw std::runtime_error("Server fraudass");
 	std::ofstream out(filePath, std::ios::binary | std::ios::in | std::ios::out);
 	out.seekp(chunk.start);
-
-	constexpr DWORD BUF_SIZE = 256 * 1024;
+	out.rdbuf()->pubsetbuf(nullptr, 0);
+	constexpr DWORD BUF_SIZE = 512 * 1024;
 	std::vector<char> buffer(BUF_SIZE);
 	DWORD bytesRead = 0;
-	while (WinHttpReadData(hRequest, buffer.data(), BUF_SIZE, &bytesRead) && bytesRead > 0)
+	while (WinHttpReadData(hRequest, buffer.data(), BUF_SIZE, &bytesRead) && bytesRead > 0) {
 		out.write(buffer.data(), bytesRead);
+		chunk.stats->bytes.fetch_add(bytesRead, std::memory_order_relaxed);
+	}
 	WinHttpCloseHandle(hRequest);
-	WinHttpCloseHandle(hConnect);
-	WinHttpCloseHandle(hSession);
 	
+}
+void Downloader::worker(ChunkQueue& queue, const std::wstring& host, const std::wstring path, const std::string& filePath, bool https)
+{
+	HINTERNET hConnect = createConnection();
+	std::fstream file(filePath, std::ios::binary | std::ios::in | std::ios::out);
+	Chunk c;
+	while (queue.pop(c))
+	{
+		download_chunk(c, host, path, https, filePath, hConnect);
+	}
+	WinHttpCloseHandle(hConnect);
+}
+void Downloader::dlMon(const std::vector<Chunk>& chunks) {
+	using clock = std::chrono::steady_clock;
+	auto lastTime = clock::now();
+	uint64_t last = 0;
+	while (!done.load(std::memory_order_relaxed))
+	{
+	    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		uint64_t currBytes = 0;
+		for (const auto& c : chunks)
+		{
+			currBytes += c.stats->bytes.load(std::memory_order_relaxed);
+		}
+		auto now = clock::now();
+		double dur = std::chrono::duration<double>(now - lastTime).count();
+		uint64_t del = currBytes - last;
+		double mbps = (del * 8.0) / (dur * 1e6);
+		std::cout << "\r" << mbps << " Mbps    " << std::flush;
+		last = currBytes;
+		lastTime = now;
+	}
 }
 void Downloader::download_multi(ThingInfo info)
 {
 	preallocate_file(info.conLen);
-
-	std::vector<std::thread> threads;
+	std::vector<ChunkStats> stats(info.chunks.size());
+	for (size_t i = 0; i < info.chunks.size(); i++)
+	{
+		info.chunks[i].stats = &stats[i];
+	}
+	ChunkQueue queue;
 	for (const auto& c : info.chunks)
 	{
-		threads.emplace_back([this, c]() {
-			this->download_chunk(c, wHost, fileName, port == 443, filePath);
-		});;
+		queue.push(c);
 	}
+	done.store(false);
+	std::thread mon(&Downloader::dlMon,this,std::cref(info.chunks));
+	commonSession();
+	constexpr int WORKERS = 8;
+	std::vector<std::thread> threads;
+	for (int i = 0; i < WORKERS; i++) {
+		threads.emplace_back(&Downloader::worker,this,std::ref(queue),wHost,fileName,filePath,port == 443);
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(250));
+	}
+
 	for (auto& t : threads)
 		t.join();
+
+	done.store(true);
+	mon.join();
 }
+
 int Downloader::run()
 {
 	if (std::filesystem::exists(filePath))
