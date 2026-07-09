@@ -2,8 +2,10 @@
 #include <fstream>
 #include "FileNameParser.h"
 #include "IPPResolver.h"
+#include <filesystem>
 #include <sstream>
 #include <chrono>
+#include <iomanip>
 #include <Windows.h>
 #include <winhttp.h>
 #include <locale>
@@ -19,10 +21,7 @@ using namespace std;
 
 string filePathBuilder(string fileName,string usrDirectory)
 {
-    ostringstream fP;
-    fP << usrDirectory;
-    fP << fileName;
-    return fP.str();
+    return (std::filesystem::path(usrDirectory) / fileName).string();
 }
 string requestBuilder(string fileName,string filePath,IPPResolver ipr)
 {
@@ -63,20 +62,25 @@ int main(int argc,char*argv[])
     string usrDirectory = argv[2];
     string filePath = filePathBuilder(fileName,usrDirectory);
     wstring wHost = string_to_wstring(ipr.ResolveHost());
-    string temp = "/" + fileName;
-    wstring fName = string_to_wstring(temp);
+    wstring fName = string_to_wstring(ipr.ResolvePath());
+
+    Prober p(wHost, fName, ipr.ResolvePort() == 443 ? 1 : 0);
+    ThingInfo info = p.probe(16);
+    if (!info.serverFileName.empty()) {
+        fileName = info.serverFileName;
+        filePath = filePathBuilder(fileName, usrDirectory);
+    }
+    cout << "Saving to: " << filePath << endl;
 
     Downloader d(fName, filePath, ipr.ResolvePort(), wHost);
-    Prober p(wHost, fName, ipr.ResolvePort() == 443 ? 1 : 0);
-    ThingInfo info = p.probe(32);
     if (!info.supportsRanges)
     {
         cout << "Going solo!" << endl;
-        cout << info.conLen << endl;
+        d.run();
     }
     else
     {
-        cout << "Going squad!" << endl;
+        cout << "Going multi!" << endl;
         cout << info.conLen << endl;
         for (auto& it : info.chunks)
             cout << it.start << " " << it.end << endl;

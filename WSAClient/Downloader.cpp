@@ -196,9 +196,9 @@ void Downloader::commonSession()
 	WinHttpSetTimeouts(hSeshCommon, 5000, 5000, 5000, 30000);
 
 }
-HINTERNET Downloader::createConnection()
+HINTERNET Downloader::createConnection(const std::wstring& host, bool https)
 {
-	HINTERNET hConnect = WinHttpConnect(hSeshCommon, wHost.c_str(), port==443 ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT, 0);
+	HINTERNET hConnect = WinHttpConnect(hSeshCommon, host.c_str(), https ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT, 0);
 	if (!hConnect)
 		throw std::runtime_error("WinHttpConnect Failed!");
 	return hConnect;
@@ -239,7 +239,7 @@ void Downloader::download_chunk(const Chunk& chunk, const std::wstring& host, co
 }
 void Downloader::worker(ChunkQueue& queue, const std::wstring& host, const std::wstring path, const std::string& filePath, bool https)
 {
-	HINTERNET hConnect = createConnection();
+	HINTERNET hConnect = createConnection(host, https);
 	std::fstream file(filePath, std::ios::binary | std::ios::in | std::ios::out);
 	Chunk c;
 	while (queue.pop(c))
@@ -285,10 +285,10 @@ void Downloader::download_multi(ThingInfo info)
 	done.store(false);
 	std::thread mon(&Downloader::dlMon,this,std::cref(info.chunks));
 	commonSession();
-	constexpr int WORKERS = 8;
+	constexpr int WORKERS = 4;
 	std::vector<std::thread> threads;
 	for (int i = 0; i < WORKERS; i++) {
-		threads.emplace_back(&Downloader::worker,this,std::ref(queue),wHost,fileName,filePath,port == 443);
+		threads.emplace_back(&Downloader::worker,this,std::ref(queue),info.finalHost,info.finalPath,filePath,info.finalPort == 443);
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(250));
 	}

@@ -30,6 +30,38 @@ std::wstring string_to_wstring(const std::string& str)
     return wstr;
 }
 
+std::string wstring_to_string(const std::wstring& wstr)
+{
+    if (wstr.empty())
+        return "";
+    int size_needed = WideCharToMultiByte(
+        CP_UTF8,
+        0,
+        wstr.data(),
+        (int)wstr.size(),
+        nullptr,
+        0,
+        nullptr,
+        nullptr
+    );
+    if (size_needed == 0)
+        throw std::runtime_error("WideCharToMultiByte failed");
+    std::string str(size_needed, 0);
+    int result = WideCharToMultiByte(
+        CP_UTF8,
+        0,
+        wstr.data(),
+        (int)wstr.size(),
+        &str[0],
+        size_needed,
+        nullptr,
+        nullptr
+    );
+    if (result == 0)
+        throw std::runtime_error("WideCharToMultiByte failed");
+    return str;
+}
+
 void ChunkQueue::push(const Chunk& c)
 {
     std::lock_guard<std::mutex> lock(m);

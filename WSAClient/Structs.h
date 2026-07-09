@@ -19,6 +19,10 @@ struct ThingInfo {
 	uint64_t conLen;
 	bool supportsRanges;
 	std::vector<Chunk> chunks;
+	std::wstring finalHost;
+	std::wstring finalPath;
+	int finalPort;
+	std::string serverFileName;
 };
 class ChunkQueue {
 	std::queue<Chunk> q;
@@ -28,3 +32,4 @@ public:
 	bool pop(Chunk& out);
 };
 std::wstring string_to_wstring(const std::string& str);
+std::string wstring_to_string(const std::wstring& wstr);

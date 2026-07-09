@@ -37,7 +37,7 @@ private:
 	void preallocate_file(uint64_t size);
 	void download_chunk(const Chunk& chunk, const std::wstring& host, const std::wstring file, bool https, const std::string& filePath,HINTERNET hConnect);
 	void commonSession();
-	HINTERNET createConnection();
+	HINTERNET createConnection(const std::wstring& host, bool https);
 	void worker(ChunkQueue& queue, const std::wstring& host, const std::wstring path, const std::string& filePath, bool https);
 	void dlMon(const std::vector<Chunk>& chunks);
 public:

@@ -13,6 +13,7 @@ public:
 	IPPResolver(std::string u);
 	int ResolvePort();
 	std::string ResolveHost();
+	std::string ResolvePath();
 };
 
 #endif // IPPRESOLVER_H

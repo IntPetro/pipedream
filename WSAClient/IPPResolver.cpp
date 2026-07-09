@@ -59,3 +59,21 @@ std::string IPPResolver::ResolveHost()
 
     return url.substr(host_start, host_end - host_start);
 }
+
+std::string IPPResolver::ResolvePath()
+{
+    int protocol_end = url.find("://");
+    int host_start = (protocol_end == std::string::npos) ? 0 : protocol_end + 3;
+    int host_end = url.find('/', host_start);
+
+    if (host_end == std::string::npos)
+        return "/";
+
+    std::string path_str = url.substr(host_end);
+    int hash_pos = path_str.find('#');
+    if (hash_pos != std::string::npos)
+    {
+        path_str.erase(hash_pos);
+    }
+    return path_str;
+}
